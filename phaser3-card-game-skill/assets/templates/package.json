@@ -1,0 +1,38 @@
+{
+  "name": "elemental-clash",
+  "version": "1.0.0",
+  "description": "Turn-based multiplayer card game built with Phaser 3",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "build:staging": "tsc && vite build --mode staging",
+    "preview": "vite preview",
+    "test": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint src --ext .ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "phaser": "^3.80.0",
+    "firebase": "^10.7.0",
+    "phaser3-rex-plugins": "^1.80.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.0",
+    "vite": "^5.0.0",
+    "vitest": "^1.0.0",
+    "@types/node": "^20.0.0",
+    "terser": "^5.26.0"
+  },
+  "keywords": [
+    "phaser",
+    "phaser3",
+    "card-game",
+    "multiplayer",
+    "firebase",
+    "typescript",
+    "vite"
+  ],
+  "license": "MIT"
+}

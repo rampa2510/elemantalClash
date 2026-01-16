@@ -1,0 +1,246 @@
+# Task Definition Template
+# Use this as a reference when decomposing projects into tasks
+
+# ============================================================================
+# SINGLE TASK TEMPLATE
+# ============================================================================
+
+task:
+  # Required fields
+  id: "TASK-XXX"                        # Unique identifier (TASK-001 format)
+  name: "Action in imperative form"      # e.g., "Build login form component"
+  
+  # Description
+  description: |
+    Detailed description of what needs to be done.
+    Include context about why this task exists.
+    Reference any relevant documentation or specs.
+  
+  # Classification
+  type: "primitive"                      # primitive (executable) or compound (needs decomposition)
+  status: "pending"                      # pending | in_progress | completed | verified | blocked | needs_human
+  
+  # Estimation
+  estimated_time: 45                     # Minutes (should be 15-240 for primitive tasks)
+  complexity:
+    score: 0.35                          # 0.0-1.0 from complexity estimation
+    category: "small"                    # trivial | small | substantial | hard
+    
+  # Skill assignment
+  assigned_skill: null                   # null or one of:
+                                         #   - "3d-web-graphics-mastery"
+                                         #   - "gas-debugger"
+                                         #   - "ui-ux-mastery-modular"
+                                         #   - "project-orchestrator"
+  
+  # Dependencies
+  dependencies:
+    hard:                                # MUST complete before this task starts
+      - "TASK-001"
+      - "TASK-002"
+    soft:                                # Nice to have completed first
+      - "TASK-003"
+    data:                                # Specific outputs needed
+      - from: "TASK-001.outputs.schema"
+        description: "Database schema file"
+  
+  # Acceptance criteria (REQUIRED - at least 2)
+  acceptance_criteria:
+    - "Specific, measurable criterion 1"
+    - "Specific, measurable criterion 2"
+    - "Specific, measurable criterion 3"
+  
+  # Scope boundaries
+  scope:
+    includes:
+      - "What IS part of this task"
+    excludes:
+      - "What is NOT part of this task"
+  
+  # Execution tracking (populated during execution)
+  started_at: null
+  completed_at: null
+  verified_at: null
+  
+  # Outputs produced
+  outputs:
+    - path: "path/to/output/file"
+      type: "code"                       # code | document | config | data
+      description: "What this output contains"
+  
+  # Review results
+  review:
+    verdict: null                        # PASS | NEEDS_REVISION | ESCALATE
+    confidence: null                     # 0.0-1.0
+    issues: []
+    notes: null
+  
+  # Notes and context
+  notes: |
+    Any additional notes, lessons learned, or context.
+
+
+# ============================================================================
+# EXAMPLE: Well-Defined Task
+# ============================================================================
+
+example_task:
+  id: "TASK-007"
+  name: "Build password reset email template"
+  
+  description: |
+    Create the HTML email template for password reset functionality.
+    Should follow our existing email design system and include
+    the reset link with proper token handling.
+  
+  type: "primitive"
+  status: "pending"
+  estimated_time: 30
+  
+  complexity:
+    score: 0.22
+    category: "trivial"
+  
+  assigned_skill: null  # Simple enough for Claude directly
+  
+  dependencies:
+    hard:
+      - "TASK-005"  # Email service setup
+    soft: []
+    data:
+      - from: "TASK-005.outputs.email_config"
+        description: "Email service configuration"
+  
+  acceptance_criteria:
+    - "Email template renders correctly in Gmail, Outlook, Apple Mail"
+    - "Reset link includes properly encoded token parameter"
+    - "Template uses design system colors and typography"
+    - "Mobile-responsive layout"
+    - "Plain text fallback included"
+  
+  scope:
+    includes:
+      - "HTML email template"
+      - "Plain text version"
+      - "Template variables for user name and reset link"
+    excludes:
+      - "Email sending logic (covered in TASK-005)"
+      - "Token generation (covered in TASK-006)"
+  
+  outputs:
+    - path: "src/emails/password-reset.html"
+      type: "code"
+      description: "HTML email template"
+    - path: "src/emails/password-reset.txt"
+      type: "code"
+      description: "Plain text fallback"
+
+
+# ============================================================================
+# TASK COMPLEXITY QUICK REFERENCE
+# ============================================================================
+
+complexity_guide:
+  trivial:
+    score_range: "0.00-0.25"
+    human_time: "<15 minutes"
+    characteristics:
+      - "Single file change"
+      - "Clear requirements"
+      - "No external dependencies"
+      - "Fully reversible"
+    autonomous: "Full auto"
+    
+  small:
+    score_range: "0.25-0.45"
+    human_time: "15-60 minutes"
+    characteristics:
+      - "1-2 files"
+      - "Mostly clear requirements"
+      - "1-2 dependencies"
+      - "Reversible"
+    autonomous: "Auto with checkpoint"
+    
+  substantial:
+    score_range: "0.45-0.65"
+    human_time: "1-4 hours"
+    characteristics:
+      - "2-5 files"
+      - "Some unclear requirements"
+      - "Multiple dependencies"
+      - "Partially reversible"
+    autonomous: "Consider decomposing"
+    
+  hard:
+    score_range: "0.65-1.00"
+    human_time: ">4 hours"
+    characteristics:
+      - "5+ files"
+      - "Vague requirements"
+      - "Complex dependencies"
+      - "Potentially irreversible"
+    autonomous: "MUST decompose"
+
+
+# ============================================================================
+# SKILL ROUTING REFERENCE
+# ============================================================================
+
+skill_routing:
+  "3d-web-graphics-mastery":
+    keywords:
+      - "Three.js"
+      - "WebGL"
+      - "shader"
+      - "3D"
+      - "particle"
+      - "R3F"
+      - "React Three Fiber"
+      - "WebGPU"
+      - "VR"
+      - "AR"
+    examples:
+      - "Build 3D product viewer"
+      - "Create particle effect"
+      - "Implement shader material"
+      
+  "gas-debugger":
+    keywords:
+      - "debug"
+      - "bug"
+      - "fix"
+      - "security"
+      - "vulnerability"
+      - "scan"
+      - "lint"
+    examples:
+      - "Fix authentication bug"
+      - "Security audit"
+      - "Code quality scan"
+      
+  "ui-ux-mastery-modular":
+    keywords:
+      - "UI"
+      - "UX"
+      - "design"
+      - "component"
+      - "accessibility"
+      - "WCAG"
+      - "form"
+      - "layout"
+    examples:
+      - "Design dashboard layout"
+      - "Build form component"
+      - "Accessibility review"
+      
+  "project-orchestrator":
+    keywords:
+      - "plan"
+      - "decompose"
+      - "orchestrate"
+      - "state"
+      - "checkpoint"
+    examples:
+      - "Break down epic"
+      - "Plan sprint"
+      - "Track progress"

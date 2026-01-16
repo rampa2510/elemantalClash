@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Scroll-Driven 3D Transformation</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    html.lenis, html.lenis body {
+      height: auto;
+    }
+    
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #000;
+      color: white;
+    }
+    
+    #canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 0;
+    }
+    
+    .scroll-container {
+      position: relative;
+      z-index: 1;
+    }
+    
+    .section {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      padding: 4rem;
+    }
+    
+    .section-content {
+      max-width: 500px;
+      opacity: 0;
+      transform: translateY(40px);
+      transition: opacity 0.8s ease, transform 0.8s ease;
+    }
+    
+    .section-content.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    
+    .section:nth-child(even) .section-content {
+      margin-left: auto;
+    }
+    
+    .section h2 {
+      font-size: clamp(2rem, 5vw, 3.5rem);
+      font-weight: 200;
+      margin-bottom: 1rem;
+      letter-spacing: -0.02em;
+    }
+    
+    .section p {
+      font-size: 1.125rem;
+      line-height: 1.7;
+      color: rgba(255,255,255,0.7);
+    }
+    
+    /* Progress indicator */
+    .progress-bar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      height: 3px;
+      background: linear-gradient(90deg, #4a00e0, #00d4ff);
+      width: 0%;
+      z-index: 100;
+      transition: width 0.1s ease-out;
+    }
+    
+    /* Section indicators */
+    .section-indicators {
+      position: fixed;
+      right: 2rem;
+      top: 50%;
+      transform: translateY(-50%);
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+    
+    .section-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.3);
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    
+    .section-dot.active {
+      background: white;
+      transform: scale(1.3);
+    }
+    
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="progress-bar"></div>
+  
+  <div class="section-indicators">
+    <div class="section-dot active" data-section="0"></div>
+    <div class="section-dot" data-section="1"></div>
+    <div class="section-dot" data-section="2"></div>
+    <div class="section-dot" data-section="3"></div>
+    <div class="section-dot" data-section="4"></div>
+  </div>
+  
+  <canvas id="canvas"></canvas>
+  
+  <div class="scroll-container">
+    <section class="section" data-section="0">
+      <div class="section-content visible">
+        <h2>The Journey Begins</h2>
+        <p>Scroll to transform the 3D scene. Watch as geometry, lighting, and atmosphere shift dramatically with your movement.</p>
+      </div>
+    </section>
+    
+    <section class="section" data-section="1">
+      <div class="section-content">
+        <h2>Metamorphosis</h2>
+        <p>The form evolves, twisting and reshaping itself. Colors shift from cool to warm as the camera orbits to reveal new perspectives.</p>
+      </div>
+    </section>
+    
+    <section class="section" data-section="2">
+      <div class="section-content">
+        <h2>Elevation</h2>
+        <p>Rising above, the scene transforms once more. Particles converge and disperse in rhythmic waves of light.</p>
+      </div>
+    </section>
+    
+    <section class="section" data-section="3">
+      <div class="section-content">
+        <h2>Convergence</h2>
+        <p>All elements align in perfect harmony. The camera pulls back to reveal the complete picture.</p>
+      </div>
+    </section>
+    
+    <section class="section" data-section="4">
+      <div class="section-content">
+        <h2>Resolution</h2>
+        <p>The transformation is complete. A new form emerges from the journey, forever changed by the experience.</p>
+      </div>
+    </section>
+  </div>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/",
+      "gsap": "https://cdn.jsdelivr.net/npm/gsap@3.12.5/+esm",
+      "lenis": "https://cdn.jsdelivr.net/npm/lenis@1.1.18/+esm"
+    }
+  }
+  </script>
+  
+  <script type="module">
+    import * as THREE from 'three';
+    import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+    import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+    import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+    import gsap from 'gsap';
+    import Lenis from 'lenis';
+    
+    // ============================================
+    // SCENE STATES - Define transformation keyframes
+    // ============================================
+    const SCENE_STATES = [
+      {
+        name: 'intro',
+        camera: { x: 0, y: 0, z: 8 },
+        target: { x: 0, y: 0, z: 0 },
+        meshRotation: { x: 0, y: 0 },
+        meshScale: 1,
+        morphTarget: 0,
+        colorA: '#4a00e0',
+        colorB: '#8e2de2',
+        fogDensity: 0.05,
+        bloomStrength: 0.5,
+        particleSpread: 1
+      },
+      {
+        name: 'transform1',
+        camera: { x: 5, y: 2, z: 6 },
+        target: { x: 0, y: 0.5, z: 0 },
+        meshRotation: { x: Math.PI * 0.25, y: Math.PI * 0.5 },
+        meshScale: 1.2,
+        morphTarget: 0.3,
+        colorA: '#e040fb',
+        colorB: '#00bcd4',
+        fogDensity: 0.08,
+        bloomStrength: 0.7,
+        particleSpread: 0.8
+      },
+      {
+        name: 'transform2',
+        camera: { x: -4, y: 4, z: 5 },
+        target: { x: 0, y: 1, z: 0 },
+        meshRotation: { x: Math.PI * 0.5, y: Math.PI },
+        meshScale: 1.5,
+        morphTarget: 0.6,
+        colorA: '#ff6b6b',
+        colorB: '#feca57',
+        fogDensity: 0.1,
+        bloomStrength: 0.8,
+        particleSpread: 0.5
+      },
+      {
+        name: 'transform3',
+        camera: { x: 0, y: 3, z: 4 },
+        target: { x: 0, y: 0.5, z: 0 },
+        meshRotation: { x: Math.PI * 0.75, y: Math.PI * 1.5 },
+        meshScale: 1.3,
+        morphTarget: 0.8,
+        colorA: '#00d4ff',
+        colorB: '#4a00e0',
+        fogDensity: 0.06,
+        bloomStrength: 0.6,
+        particleSpread: 0.3
+      },
+      {
+        name: 'finale',
+        camera: { x: 0, y: 0, z: 6 },
+        target: { x: 0, y: 0, z: 0 },
+        meshRotation: { x: Math.PI * 2, y: Math.PI * 2 },
+        meshScale: 1,
+        morphTarget: 1,
+        colorA: '#ffffff',
+        colorB: '#4a00e0',
+        fogDensity: 0.03,
+        bloomStrength: 1.0,
+        particleSpread: 1.2
+      }
+    ];
+    
+    // ============================================
+    // SETUP
+    // ============================================
+    const canvas = document.getElementById('canvas');
+    
+    const renderer = new THREE.WebGLRenderer({
+      canvas,
+      antialias: true,
+      powerPreference: 'high-performance'
+    });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.0;
+    
+    const scene = new THREE.Scene();
+    scene.fog = new THREE.FogExp2(0x000000, 0.05);
+    
+    const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 100);
+    camera.position.set(0, 0, 8);
+    
+    // Post-processing
+    const composer = new EffectComposer(renderer);
+    composer.addPass(new RenderPass(scene, camera));
+    
+    const bloomPass = new UnrealBloomPass(
+      new THREE.Vector2(window.innerWidth, window.innerHeight),
+      0.5, 0.4, 0.85
+    );
+    composer.addPass(bloomPass);
+    
+    // ============================================
+    // MORPHING GEOMETRY
+    // ============================================
+    // Create base geometry with morph targets
+    const baseGeometry = new THREE.IcosahedronGeometry(1.5, 4);
+    const torusGeometry = new THREE.TorusKnotGeometry(1, 0.3, 128, 32);
+    
+    // Create morph target from torus positions
+    const morphPositions = new Float32Array(baseGeometry.attributes.position.count * 3);
+    const torusPositions = torusGeometry.attributes.position.array;
+    
+    for (let i = 0; i < morphPositions.length; i += 3) {
+      const idx = i % torusPositions.length;
+      morphPositions[i] = torusPositions[idx] || 0;
+      morphPositions[i + 1] = torusPositions[idx + 1] || 0;
+      morphPositions[i + 2] = torusPositions[idx + 2] || 0;
+    }
+    
+    baseGeometry.morphAttributes.position = [
+      new THREE.BufferAttribute(morphPositions, 3)
+    ];
+    
+    // Material with dynamic colors
+    const mainMaterial = new THREE.ShaderMaterial({
+      uniforms: {
+        uTime: { value: 0 },
+        uColorA: { value: new THREE.Color('#4a00e0') },
+        uColorB: { value: new THREE.Color('#8e2de2') },
+        uMorphProgress: { value: 0 }
+      },
+      vertexShader: `
+        uniform float uTime;
+        uniform float uMorphProgress;
+        
+        varying vec3 vNormal;
+        varying vec3 vPosition;
+        varying float vNoise;
+        
+        // Simplex noise
+        vec3 mod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
+        vec4 mod289(vec4 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
+        vec4 permute(vec4 x) { return mod289(((x*34.0)+1.0)*x); }
+        vec4 taylorInvSqrt(vec4 r) { return 1.79284291400159 - 0.85373472095314 * r; }
+        
+        float snoise(vec3 v) {
+          const vec2 C = vec2(1.0/6.0, 1.0/3.0);
+          const vec4 D = vec4(0.0, 0.5, 1.0, 2.0);
+          vec3 i = floor(v + dot(v, C.yyy));
+          vec3 x0 = v - i + dot(i, C.xxx);
+          vec3 g = step(x0.yzx, x0.xyz);
+          vec3 l = 1.0 - g;
+          vec3 i1 = min(g.xyz, l.zxy);
+          vec3 i2 = max(g.xyz, l.zxy);
+          vec3 x1 = x0 - i1 + C.xxx;
+          vec3 x2 = x0 - i2 + C.yyy;
+          vec3 x3 = x0 - D.yyy;
+          i = mod289(i);
+          vec4 p = permute(permute(permute(
+            i.z + vec4(0.0, i1.z, i2.z, 1.0))
+            + i.y + vec4(0.0, i1.y, i2.y, 1.0))
+            + i.x + vec4(0.0, i1.x, i2.x, 1.0));
+          float n_ = 0.142857142857;
+          vec3 ns = n_ * D.wyz - D.xzx;
+          vec4 j = p - 49.0 * floor(p * ns.z * ns.z);
+          vec4 x_ = floor(j * ns.z);
+          vec4 y_ = floor(j - 7.0 * x_);
+          vec4 x = x_ * ns.x + ns.yyyy;
+          vec4 y = y_ * ns.x + ns.yyyy;
+          vec4 h = 1.0 - abs(x) - abs(y);
+          vec4 b0 = vec4(x.xy, y.xy);
+          vec4 b1 = vec4(x.zw, y.zw);
+          vec4 s0 = floor(b0)*2.0 + 1.0;
+          vec4 s1 = floor(b1)*2.0 + 1.0;
+          vec4 sh = -step(h, vec4(0.0));
+          vec4 a0 = b0.xzyw + s0.xzyw*sh.xxyy;
+          vec4 a1 = b1.xzyw + s1.xzyw*sh.zzww;
+          vec3 p0 = vec3(a0.xy, h.x);
+          vec3 p1 = vec3(a0.zw, h.y);
+          vec3 p2 = vec3(a1.xy, h.z);
+          vec3 p3 = vec3(a1.zw, h.w);
+          vec4 norm = taylorInvSqrt(vec4(dot(p0,p0), dot(p1,p1), dot(p2,p2), dot(p3,p3)));
+          p0 *= norm.x; p1 *= norm.y; p2 *= norm.z; p3 *= norm.w;
+          vec4 m = max(0.6 - vec4(dot(x0,x0), dot(x1,x1), dot(x2,x2), dot(x3,x3)), 0.0);
+          m = m * m;
+          return 42.0 * dot(m*m, vec4(dot(p0,x0), dot(p1,x1), dot(p2,x2), dot(p3,x3)));
+        }
+        
+        void main() {
+          vNormal = normal;
+          vPosition = position;
+          
+          float noise = snoise(position * 2.0 + uTime * 0.3);
+          vNoise = noise;
+          
+          float displacement = noise * 0.15 * (1.0 + uMorphProgress * 0.5);
+          vec3 newPosition = position + normal * displacement;
+          
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(newPosition, 1.0);
+        }
+      `,
+      fragmentShader: `
+        uniform vec3 uColorA;
+        uniform vec3 uColorB;
+        uniform float uMorphProgress;
+        
+        varying vec3 vNormal;
+        varying vec3 vPosition;
+        varying float vNoise;
+        
+        void main() {
+          float mixFactor = vNoise * 0.5 + 0.5;
+          mixFactor += vNormal.y * 0.3;
+          mixFactor = clamp(mixFactor, 0.0, 1.0);
+          
+          vec3 color = mix(uColorA, uColorB, mixFactor);
+          
+          // Rim light
+          float rim = 1.0 - max(0.0, dot(vNormal, vec3(0.0, 0.0, 1.0)));
+          rim = pow(rim, 3.0);
+          color += rim * 0.5 * uColorB;
+          
+          gl_FragColor = vec4(color, 1.0);
+        }
+      `,
+      morphTargets: true
+    });
+    
+    const mainMesh = new THREE.Mesh(baseGeometry, mainMaterial);
+    scene.add(mainMesh);
+    
+    // ============================================
+    // PARTICLES
+    // ============================================
+    const particleCount = 2000;
+    const particleGeometry = new THREE.BufferGeometry();
+    const positions = new Float32Array(particleCount * 3);
+    const randoms = new Float32Array(particleCount);
+    
+    for (let i = 0; i < particleCount; i++) {
+      const theta = Math.random() * Math.PI * 2;
+      const phi = Math.acos(2 * Math.random() - 1);
+      const r = 3 + Math.random() * 4;
+      
+      positions[i * 3] = r * Math.sin(phi) * Math.cos(theta);
+      positions[i * 3 + 1] = r * Math.sin(phi) * Math.sin(theta);
+      positions[i * 3 + 2] = r * Math.cos(phi);
+      randoms[i] = Math.random();
+    }
+    
+    particleGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    particleGeometry.setAttribute('aRandom', new THREE.BufferAttribute(randoms, 1));
+    
+    const particleMaterial = new THREE.ShaderMaterial({
+      uniforms: {
+        uTime: { value: 0 },
+        uSpread: { value: 1 },
+        uSize: { value: 20 * renderer.getPixelRatio() }
+      },
+      vertexShader: `
+        uniform float uTime;
+        uniform float uSpread;
+        uniform float uSize;
+        attribute float aRandom;
+        varying float vAlpha;
+        
+        void main() {
+          vec3 pos = position * uSpread;
+          
+          // Orbital motion
+          float angle = uTime * 0.15 * (0.5 + aRandom * 0.5);
+          float c = cos(angle);
+          float s = sin(angle);
+          pos.xz = mat2(c, -s, s, c) * pos.xz;
+          
+          // Vertical oscillation
+          pos.y += sin(uTime * 0.5 + aRandom * 6.28) * 0.3;
+          
+          vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
+          vAlpha = smoothstep(-15.0, -2.0, mvPosition.z) * (0.2 + aRandom * 0.6);
+          
+          gl_Position = projectionMatrix * mvPosition;
+          gl_PointSize = uSize * (1.0 / -mvPosition.z) * (0.3 + aRandom * 0.7);
+        }
+      `,
+      fragmentShader: `
+        varying float vAlpha;
+        
+        void main() {
+          float dist = length(gl_PointCoord - 0.5);
+          if (dist > 0.5) discard;
+          float alpha = smoothstep(0.5, 0.0, dist) * vAlpha;
+          gl_FragColor = vec4(1.0, 1.0, 1.0, alpha);
+        }
+      `,
+      transparent: true,
+      depthWrite: false,
+      blending: THREE.AdditiveBlending
+    });
+    
+    const particles = new THREE.Points(particleGeometry, particleMaterial);
+    scene.add(particles);
+    
+    // ============================================
+    // STATE INTERPOLATION
+    // ============================================
+    const currentState = {
+      camera: { x: 0, y: 0, z: 8 },
+      target: { x: 0, y: 0, z: 0 },
+      meshRotation: { x: 0, y: 0 },
+      meshScale: 1,
+      morphTarget: 0,
+      colorA: new THREE.Color('#4a00e0'),
+      colorB: new THREE.Color('#8e2de2'),
+      fogDensity: 0.05,
+      bloomStrength: 0.5,
+      particleSpread: 1
+    };
+    
+    function interpolateStates(progress) {
+      const totalSegments = SCENE_STATES.length - 1;
+      const scaledProgress = progress * totalSegments;
+      const currentIndex = Math.min(Math.floor(scaledProgress), totalSegments - 1);
+      const nextIndex = Math.min(currentIndex + 1, totalSegments);
+      const localProgress = scaledProgress - currentIndex;
+      
+      // Ease function
+      const eased = easeInOutCubic(localProgress);
+      
+      const from = SCENE_STATES[currentIndex];
+      const to = SCENE_STATES[nextIndex];
+      
+      // Interpolate all values
+      currentState.camera.x = lerp(from.camera.x, to.camera.x, eased);
+      currentState.camera.y = lerp(from.camera.y, to.camera.y, eased);
+      currentState.camera.z = lerp(from.camera.z, to.camera.z, eased);
+      
+      currentState.target.x = lerp(from.target.x, to.target.x, eased);
+      currentState.target.y = lerp(from.target.y, to.target.y, eased);
+      currentState.target.z = lerp(from.target.z, to.target.z, eased);
+      
+      currentState.meshRotation.x = lerp(from.meshRotation.x, to.meshRotation.x, eased);
+      currentState.meshRotation.y = lerp(from.meshRotation.y, to.meshRotation.y, eased);
+      currentState.meshScale = lerp(from.meshScale, to.meshScale, eased);
+      currentState.morphTarget = lerp(from.morphTarget, to.morphTarget, eased);
+      
+      currentState.colorA.lerpColors(
+        new THREE.Color(from.colorA),
+        new THREE.Color(to.colorA),
+        eased
+      );
+      currentState.colorB.lerpColors(
+        new THREE.Color(from.colorB),
+        new THREE.Color(to.colorB),
+        eased
+      );
+      
+      currentState.fogDensity = lerp(from.fogDensity, to.fogDensity, eased);
+      currentState.bloomStrength = lerp(from.bloomStrength, to.bloomStrength, eased);
+      currentState.particleSpread = lerp(from.particleSpread, to.particleSpread, eased);
+      
+      return currentIndex;
+    }
+    
+    function applyState() {
+      camera.position.set(currentState.camera.x, currentState.camera.y, currentState.camera.z);
+      camera.lookAt(currentState.target.x, currentState.target.y, currentState.target.z);
+      
+      mainMesh.rotation.x = currentState.meshRotation.x;
+      mainMesh.rotation.y = currentState.meshRotation.y;
+      mainMesh.scale.setScalar(currentState.meshScale);
+      mainMesh.morphTargetInfluences[0] = currentState.morphTarget;
+      
+      mainMaterial.uniforms.uColorA.value.copy(currentState.colorA);
+      mainMaterial.uniforms.uColorB.value.copy(currentState.colorB);
+      mainMaterial.uniforms.uMorphProgress.value = currentState.morphTarget;
+      
+      scene.fog.density = currentState.fogDensity;
+      bloomPass.strength = currentState.bloomStrength;
+      particleMaterial.uniforms.uSpread.value = currentState.particleSpread;
+    }
+    
+    function lerp(a, b, t) { return a + (b - a) * t; }
+    function easeInOutCubic(t) {
+      return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+    }
+    
+    // ============================================
+    // LENIS SMOOTH SCROLL
+    // ============================================
+    const lenis = new Lenis({
+      duration: 1.2,
+      easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+      smoothWheel: true
+    });
+    
+    let scrollProgress = 0;
+    let currentSection = 0;
+    
+    lenis.on('scroll', ({ progress }) => {
+      scrollProgress = progress;
+      
+      // Update progress bar
+      document.querySelector('.progress-bar').style.width = `${progress * 100}%`;
+      
+      // Update active section
+      const newSection = interpolateStates(progress);
+      if (newSection !== currentSection) {
+        updateActiveDot(newSection);
+        currentSection = newSection;
+      }
+    });
+    
+    function updateActiveDot(index) {
+      document.querySelectorAll('.section-dot').forEach((dot, i) => {
+        dot.classList.toggle('active', i === index);
+      });
+    }
+    
+    // Section dot click navigation
+    document.querySelectorAll('.section-dot').forEach(dot => {
+      dot.addEventListener('click', () => {
+        const sectionIndex = parseInt(dot.dataset.section);
+        const targetScroll = (sectionIndex / (SCENE_STATES.length - 1)) * 
+                            (document.body.scrollHeight - window.innerHeight);
+        lenis.scrollTo(targetScroll, { duration: 1.5 });
+      });
+    });
+    
+    // ============================================
+    // INTERSECTION OBSERVER FOR TEXT
+    // ============================================
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('visible');
+        }
+      });
+    }, { threshold: 0.3 });
+    
+    document.querySelectorAll('.section-content').forEach(el => observer.observe(el));
+    
+    // ============================================
+    // ANIMATION LOOP
+    // ============================================
+    const clock = new THREE.Clock();
+    let isVisible = true;
+    
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) {
+        isVisible = false;
+        clock.stop();
+      } else {
+        isVisible = true;
+        clock.start();
+        clock.getDelta();
+      }
+    });
+    
+    function animate(time) {
+      requestAnimationFrame(animate);
+      lenis.raf(time);
+      
+      if (!isVisible) return;
+      
+      const elapsed = clock.getElapsedTime();
+      
+      // Update state from scroll
+      interpolateStates(scrollProgress);
+      applyState();
+      
+      // Update time-based uniforms
+      mainMaterial.uniforms.uTime.value = elapsed;
+      particleMaterial.uniforms.uTime.value = elapsed;
+      
+      composer.render();
+    }
+    
+    // ============================================
+    // RESIZE
+    // ============================================
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      composer.setSize(window.innerWidth, window.innerHeight);
+    });
+    
+    // Start
+    requestAnimationFrame(animate);
+  </script>
+</body>
+</html>

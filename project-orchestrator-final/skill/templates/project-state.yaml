@@ -1,0 +1,59 @@
+# Project Orchestrator State Template
+# Copy this file to .orchestrator/state.yaml and customize
+
+project:
+  id: "proj_YYYYMMDD_HHMMSS"           # Unique project identifier
+  name: "Project Name"                  # Human-readable name
+  goal: |
+    Describe the project goal in detail.
+    What are we building and why?
+  created: "2025-01-01T00:00:00Z"       # ISO timestamp
+  constraints:
+    - "Constraint 1"
+    - "Constraint 2"
+
+# Current phase: planning | implementation | review | complete
+phase: "planning"
+phase_started: "2025-01-01T00:00:00Z"
+phase_progress: 0.0                     # 0.0 to 1.0
+
+# Task list - populate after decomposition
+tasks:
+  # Example task (delete and replace with real tasks)
+  - id: "TASK-001"
+    name: "Task name - use imperative form"
+    description: |
+      Detailed description of what needs to be done.
+    type: "primitive"                   # primitive | compound
+    status: "pending"                   # pending | in_progress | completed | verified | blocked | needs_human
+    estimated_time: 45                  # minutes
+    assigned_skill: null                # or skill name like "gas-debugger"
+    dependencies:
+      hard: []                          # Task IDs that MUST complete first
+      soft: []                          # Task IDs that are nice to have first
+    acceptance_criteria:
+      - "Criterion 1 - specific and verifiable"
+      - "Criterion 2 - specific and verifiable"
+    started_at: null
+    completed_at: null
+    verified_at: null
+    outputs: []
+    notes: null
+
+# Checkpoints created during execution
+checkpoints: []
+
+# Session metadata
+session:
+  id: "sess_YYYYMMDD_HHMMSS"
+  started: "2025-01-01T00:00:00Z"
+  last_updated: "2025-01-01T00:00:00Z"
+  context_usage: 0.0                    # Estimated 0.0 to 1.0
+  compactions: 0
+  notes: "Session notes go here"
+
+# Tasks waiting on something
+blocked_tasks: []
+
+# Tasks requiring human input
+escalated_tasks: []
