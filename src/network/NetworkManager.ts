@@ -78,12 +78,36 @@ export class NetworkManager {
     return new Promise((resolve, reject) => {
       try {
         // Create peer with session ID
+        // Include TURN servers for NAT traversal (required for remote connections)
         this.peer = new Peer(sessionId, {
           host: '0.peerjs.com',
           port: 443,
           path: '/',
           secure: true,
           debug: this.config.debug ? 3 : 0,
+          config: {
+            iceServers: [
+              { urls: 'stun:stun.l.google.com:19302' },
+              { urls: 'stun:stun1.l.google.com:19302' },
+              { urls: 'stun:stun2.l.google.com:19302' },
+              // Free TURN servers from OpenRelay (https://www.metered.ca/tools/openrelay/)
+              {
+                urls: 'turn:openrelay.metered.ca:80',
+                username: 'openrelayproject',
+                credential: 'openrelayproject'
+              },
+              {
+                urls: 'turn:openrelay.metered.ca:443',
+                username: 'openrelayproject',
+                credential: 'openrelayproject'
+              },
+              {
+                urls: 'turn:openrelay.metered.ca:443?transport=tcp',
+                username: 'openrelayproject',
+                credential: 'openrelayproject'
+              }
+            ]
+          }
         });
 
         // Store handlers for cleanup
@@ -153,6 +177,7 @@ export class NetworkManager {
     return new Promise((resolve, reject) => {
       try {
         // Create peer with random ID
+        // Include TURN servers for NAT traversal (required for remote connections)
         const clientId = 'client-' + Math.random().toString(36).substr(2, 9);
         this.peer = new Peer(clientId, {
           host: '0.peerjs.com',
@@ -160,6 +185,29 @@ export class NetworkManager {
           path: '/',
           secure: true,
           debug: this.config.debug ? 3 : 0,
+          config: {
+            iceServers: [
+              { urls: 'stun:stun.l.google.com:19302' },
+              { urls: 'stun:stun1.l.google.com:19302' },
+              { urls: 'stun:stun2.l.google.com:19302' },
+              // Free TURN servers from OpenRelay (https://www.metered.ca/tools/openrelay/)
+              {
+                urls: 'turn:openrelay.metered.ca:80',
+                username: 'openrelayproject',
+                credential: 'openrelayproject'
+              },
+              {
+                urls: 'turn:openrelay.metered.ca:443',
+                username: 'openrelayproject',
+                credential: 'openrelayproject'
+              },
+              {
+                urls: 'turn:openrelay.metered.ca:443?transport=tcp',
+                username: 'openrelayproject',
+                credential: 'openrelayproject'
+              }
+            ]
+          }
         });
 
         // Store handlers for cleanup
